@@ -237,6 +237,38 @@ const OPENAI_DATED = {
 };
 for (const [k, v] of Object.entries(OPENAI_DATED)) _lookup.set(k, v);
 
+// Cursor-friendly aliases — Cursor's client-side whitelist blocks model names
+// containing "claude". These prefixes bypass the filter while resolving to the
+// same Windsurf backend models. Use any of these in Cursor's Custom Model field.
+const CURSOR_ALIASES = {
+  // opus
+  'opus-4.6':              'claude-opus-4.6',
+  'opus-4.6-thinking':     'claude-opus-4.6-thinking',
+  'opus-4-7':              'claude-opus-4-7-medium',
+  'opus-4.7':              'claude-opus-4-7-medium',
+  // sonnet
+  'sonnet-4.6':            'claude-sonnet-4.6',
+  'sonnet-4.6-thinking':   'claude-sonnet-4.6-thinking',
+  'sonnet-4.6-1m':         'claude-sonnet-4.6-1m',
+  'sonnet-4.5':            'claude-4.5-sonnet',
+  'sonnet-4.5-thinking':   'claude-4.5-sonnet-thinking',
+  // haiku
+  'haiku-4.5':             'claude-4.5-haiku',
+  // older
+  'sonnet-4':              'claude-4-sonnet',
+  'opus-4':                'claude-4-opus',
+  'opus-4.1':              'claude-4.1-opus',
+  'sonnet-3.7':            'claude-3.7-sonnet',
+  'sonnet-3.5':            'claude-3.5-sonnet',
+  // ws-* prefix variant (even safer against future whitelist updates)
+  'ws-opus':               'claude-opus-4.6',
+  'ws-sonnet':             'claude-sonnet-4.6',
+  'ws-opus-thinking':      'claude-opus-4.6-thinking',
+  'ws-sonnet-thinking':    'claude-sonnet-4.6-thinking',
+  'ws-haiku':              'claude-4.5-haiku',
+};
+for (const [k, v] of Object.entries(CURSOR_ALIASES)) _lookup.set(k, v);
+
 /** Resolve user model name → internal model key. */
 export function resolveModel(name) {
   if (!name) return null;
