@@ -445,7 +445,8 @@ function buildCascadeConfig(modelEnum, modelUid, { toolPreamble, forceDefault } 
       writeStringField(2,
         'You have no tools, no file access, and no command execution. ' +
         'Answer all questions directly using your knowledge. ' +
-        'Never pretend to create files or check directories.'),
+        'Never pretend to create files or check directories. ' +
+        'Never reference /home/user/projects/ or /tmp/windsurf-workspace/ paths — use relative paths (./) if mentioning files.'),
     ]);
     convParts.push(writeMessageField(12, noToolAdditional));
 

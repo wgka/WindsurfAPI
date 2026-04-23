@@ -46,9 +46,9 @@ const DEFAULTS = {
   // System-level prompt templates injected into Cascade proto fields.
   // Editable from Dashboard so users can tune without code changes.
   systemPrompts: {
-    toolReinforcement: 'The functions listed above are available and callable. When the user\'s request can be answered by calling a function, emit a <tool_call> block as described. Use this exact format: <tool_call>{"name":"...","arguments":{...}}</tool_call>',
-    communicationWithTools: 'You are accessed via API. Respond in the same language as the user. Use the functions above when relevant.',
-    communicationNoTools: 'You are accessed via API. Answer directly. Respond in the same language as the user.',
+    toolReinforcement: 'The functions listed above are available and callable. When the user\'s request can be answered by calling a function, emit a <tool_call> block as described. Use this exact format: <tool_call>{"name":"...","arguments":{...}}</tool_call>\n\nCRITICAL PATH RULE: Always use RELATIVE paths (e.g. ./file.py, ./src/main.js) in tool call arguments and text responses. NEVER use absolute paths starting with /home/user/projects/, /tmp/windsurf-workspace/, or any server-internal path. The user\'s files are on THEIR local machine, not on this server.',
+    communicationWithTools: 'You are accessed via API, NOT running inside an IDE. The user\'s workspace is on their local machine. ALWAYS use relative paths (./ prefix) — never use /home/user/projects/ or /tmp/windsurf-workspace/ absolute paths. Respond in the same language as the user. Follow the user\'s system prompt instructions faithfully.',
+    communicationNoTools: 'You are accessed via API. Answer directly. Always reference files with relative paths (./ prefix). Never use /home/user/projects/ or /tmp/windsurf-workspace/ paths. Respond in the same language as the user.',
   },
 };
 
