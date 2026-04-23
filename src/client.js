@@ -344,7 +344,11 @@ export class WindsurfClient {
       // Cascade is legitimately mid-thinking but `responseText` hasn't moved.
       let lastGrowthAt = Date.now();
       let lastStepCount = 0;
-      const maxWait = 180_000;
+      // Dynamic maxWait: scale with input size so large multi-turn
+      // conversations (36+ turns, 44K+ chars) don't get cut off at 180s.
+      // Base: 180s. +60s per 10K chars beyond 10K, capped at 600s.
+      const BASE_MAX_WAIT = 180_000;
+      const maxWait = Math.min(600_000, BASE_MAX_WAIT + Math.max(0, Math.floor((inputChars - 10_000) / 10_000)) * 60_000);
       const pollInterval = 500;
       const IDLE_GRACE_MS = 8_000;     // minimum time before idle-break allowed
       // 25s no progress on any signal = genuine stall. Was 15s + text-only,
@@ -352,10 +356,19 @@ export class WindsurfClient {
       // preambles as if they were complete replies.
       const NO_GROWTH_STALL_MS = 25_000;
       const STALL_RETRY_MIN_TEXT = 300;  // stalls shorter than this → retryable error, not partial success
+      // Active-growth extension: if text is still growing when maxWait
+      // hits, extend up to ABSOLUTE_MAX_WAIT. Prevents cutting off a
+      // response that's actively streaming.
+      const ABSOLUTE_MAX_WAIT = 900_000;
+      const GROWTH_EXTEND_MS = 60_000;
+      // Max response text cap: beyond this the model is generating
+      // excessively (e.g. tool-emulation verbosity). Accept partial.
+      const MAX_RESPONSE_TEXT = 120_000;
       const startTime = Date.now();
       let endReason = 'unknown';
+      let effectiveMaxWait = maxWait;
 
-      while (Date.now() - startTime < maxWait) {
+      while (Date.now() - startTime < effectiveMaxWait) {
         if (aborted()) { endReason = 'aborted'; break; }
         await new Promise(r => setTimeout(r, pollInterval));
         if (aborted()) { endReason = 'aborted'; break; }
@@ -486,6 +499,23 @@ export class WindsurfClient {
           }
         }
 
+        // Max response text cap: if we've received more than MAX_RESPONSE_TEXT
+        // chars, the model is likely over-generating (common with tool-emulation
+        // on verbose models). Accept what we have.
+        if (totalYielded > MAX_RESPONSE_TEXT) {
+          log.info(`Cascade response text cap reached (${totalYielded} chars > ${MAX_RESPONSE_TEXT}), accepting partial`);
+          endReason = 'text_cap';
+          break;
+        }
+
+        // Active-growth extension: if close to effectiveMaxWait but text
+        // is still growing, extend the deadline.
+        const remaining = effectiveMaxWait - (Date.now() - startTime);
+        if (remaining < 10_000 && remaining > 0 && (Date.now() - lastGrowthAt) < 10_000 && totalYielded > STALL_RETRY_MIN_TEXT && effectiveMaxWait < ABSOLUTE_MAX_WAIT) {
+          effectiveMaxWait = Math.min(ABSOLUTE_MAX_WAIT, effectiveMaxWait + GROWTH_EXTEND_MS);
+          log.info(`Cascade extending timeout to ${effectiveMaxWait}ms (text still growing, ${totalYielded} chars so far)`);
+        }
+
         // Warm stall: text stopped growing for 25s while planner is active.
         // Placed AFTER the step loop so lastGrowthAt is current-poll fresh.
         if (sawText && lastStatus !== 1 && (Date.now() - lastGrowthAt) > NO_GROWTH_STALL_MS) {
@@ -570,7 +600,15 @@ export class WindsurfClient {
           idleCount = 0;
         }
       }
-      if (endReason === 'unknown') endReason = 'max_wait';
+      if (endReason === 'unknown') {
+        // If text was still actively growing when the timeout hit,
+        // this is a genuine max-wait, not a stall. Log extra context.
+        const growthAge = Date.now() - lastGrowthAt;
+        if (growthAge < 10_000 && totalYielded > 0) {
+          log.info(`Cascade max_wait with active growth (growthAge=${growthAge}ms, textLen=${totalYielded})`);
+        }
+        endReason = 'max_wait';
+      }
 
       // Structured summary so we can diagnose short/empty completions after
       // the fact. sawActive=false + sawText=false + idle_empty = the planner

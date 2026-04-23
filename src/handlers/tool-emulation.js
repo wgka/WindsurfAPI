@@ -313,7 +313,14 @@ export class ToolCallStreamParser {
       // ── Inside a <tool_result …>…</tool_result> block — discard body ──
       if (this.inToolResult) {
         const closeIdx = this.buffer.indexOf(TR_CLOSE);
-        if (closeIdx === -1) break;
+        if (closeIdx === -1) {
+          if (this.buffer.length > 32_768) {
+            this.buffer = '';
+            this.inToolResult = false;
+            continue;
+          }
+          break;
+        }
         this.buffer = this.buffer.slice(closeIdx + TR_CLOSE.length);
         this.inToolResult = false;
         continue;
@@ -322,7 +329,18 @@ export class ToolCallStreamParser {
       // ── Inside a <tool_call>…</tool_call> block — parse JSON body ──
       if (this.inToolCall) {
         const closeIdx = this.buffer.indexOf(TC_CLOSE);
-        if (closeIdx === -1) break;
+        if (closeIdx === -1) {
+          // Safety valve: if the buffer exceeds 32KB without a close tag,
+          // this isn't a real tool_call — flush as plain text so the stream
+          // doesn't appear stuck to the client.
+          if (this.buffer.length > 32_768) {
+            safeParts.push('<tool_call>' + this.buffer);
+            this.buffer = '';
+            this.inToolCall = false;
+            continue;
+          }
+          break;
+        }
         const body = this.buffer.slice(0, closeIdx).trim();
         this.buffer = this.buffer.slice(closeIdx + TC_CLOSE.length);
         this.inToolCall = false;
