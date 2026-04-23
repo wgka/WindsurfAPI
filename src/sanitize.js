@@ -27,6 +27,7 @@
 // other two go to "[internal]" — no reason a caller should ever see them.
 const PATTERNS = [
   [/\/tmp\/windsurf-workspace(\/[^\s"'`<>)}\],*;]*)?/g, '.$1'],
+  [/\/home\/user\/projects\/workspace-[a-z0-9]+(\/[^\s"'`<>)}\],*;]*)?/g, '.$1'],
   [/\/opt\/windsurf(?:\/[^\s"'`<>)}\],*;]*)?/g, '[internal]'],
   [/\/root\/WindsurfAPI(?:\/[^\s"'`<>)}\],*;]*)?/g, '[internal]'],
 ];
@@ -34,6 +35,7 @@ const PATTERNS = [
 // Bare literals (no path tail) used by the streaming cut-point finder.
 const SENSITIVE_LITERALS = [
   '/tmp/windsurf-workspace',
+  '/home/user/projects/workspace-',
   '/opt/windsurf',
   '/root/WindsurfAPI',
 ];
